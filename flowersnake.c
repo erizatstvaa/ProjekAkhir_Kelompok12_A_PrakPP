@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 #define MAX_SNAKE 100
 
@@ -16,7 +17,6 @@ int score = 0;
 int dx = 1, dy = 0;
 int game_over = 0;
 
-// Cek apakah posisi adalah dinding/obstacle
 int is_wall(int x, int y) {
     if (x <= 0 || x >= 49 || y <= 0 || y >= 20) return 1;
     
@@ -39,7 +39,6 @@ int is_wall(int x, int y) {
     return 0;
 }
 
-// Spawn food di posisi aman
 void spawn_food() {
     int valid = 0;
     int i;
@@ -64,6 +63,121 @@ void spawn_food() {
     }
 }
 
+void reset_game() {
+    snake[0].x = 25;
+    snake[0].y = 12;
+    snake[1].x = 24;
+    snake[1].y = 12;
+    snake[2].x = 23;
+    snake[2].y = 12;
+    snake_len = 3;
+    score = 0;
+    dx = 1;
+    dy = 0;
+    game_over = 0;
+    spawn_food();
+}
+
+int show_menu() {
+    int selected = 0;
+    int ch;
+    char *menu[] = {"START GAME", "HOW TO PLAY", "EXIT"};
+    int menu_size = 3;
+    
+    while (1) {
+        erase();
+        
+        attron(COLOR_PAIR(5) | A_BOLD);
+        mvprintw(3, 15, "##################################");
+        mvprintw(4, 15, "#                                #");
+        mvprintw(5, 15, "#         SNAKE GAME             #");
+        mvprintw(6, 15, "#        ~ Classic ~             #");
+        mvprintw(7, 15, "#                                #");
+        mvprintw(8, 15, "##################################");
+        attroff(COLOR_PAIR(5) | A_BOLD);
+        
+        attron(COLOR_PAIR(1));
+        mvprintw(10, 22, "    ____");
+        mvprintw(11, 22, "   / o o\\");
+        mvprintw(12, 22, "  (   >  )");
+        mvprintw(13, 22, "   \\_~_/~oooo");
+        attroff(COLOR_PAIR(1));
+        
+        // Menu options
+        int i;
+        for (i = 0; i < menu_size; i++) {
+            if (i == selected) {
+                attron(COLOR_PAIR(2) | A_BOLD | A_REVERSE);
+                mvprintw(16 + i * 2, 23, "  %s  ", menu[i]);
+                attroff(COLOR_PAIR(2) | A_BOLD | A_REVERSE);
+            } else {
+                attron(COLOR_PAIR(4));
+                mvprintw(16 + i * 2, 23, "  %s  ", menu[i]);
+                attroff(COLOR_PAIR(4));
+            }
+        }
+        
+        // Controls info
+        attron(COLOR_PAIR(3));
+        mvprintw(23, 12, "Use UP/DOWN arrow keys or W/S to navigate");
+        mvprintw(24, 17, "Press ENTER to select");
+        attroff(COLOR_PAIR(3));
+        
+        refresh();
+        
+        ch = getch();
+        
+        if (ch == KEY_UP || ch == 'w') {
+            selected = (selected - 1 + menu_size) % menu_size;
+        }
+        else if (ch == KEY_DOWN || ch == 's') {
+            selected = (selected + 1) % menu_size;
+        }
+        else if (ch == '\n' || ch == '\r' || ch == KEY_ENTER) {
+            if (selected == 0) {
+                return 1; // Start game
+            }
+            else if (selected == 1) {
+                // Info how to play
+                erase();
+                attron(COLOR_PAIR(2) | A_BOLD);
+                mvprintw(3, 18, "===== HOW TO PLAY =====");
+                attroff(COLOR_PAIR(2) | A_BOLD);
+                
+                attron(COLOR_PAIR(4));
+                mvprintw(6, 10, "@ = Snake Head (You!)");
+                mvprintw(7, 10, "o = Snake Body");
+                mvprintw(8, 10, "* = Food");
+                mvprintw(9, 10, "# = Wall/Obstacle");
+                
+                mvprintw(11, 10, "CONTROLS:");
+                mvprintw(12, 10, "- Arrow Keys or WASD to move");
+                mvprintw(13, 10, "- Eat food (*) to grow longer");
+                mvprintw(14, 10, "- Don't hit walls or yourself!");
+                mvprintw(15, 10, "- Press Q to quit anytime");
+                mvprintw(16, 10, "- Press R to restart");
+                
+                mvprintw(18, 10, "GOAL: Get the highest score!");
+                attroff(COLOR_PAIR(4));
+                
+                attron(COLOR_PAIR(5));
+                mvprintw(21, 14, "Press any key to return to menu...");
+                attroff(COLOR_PAIR(5));
+                
+                refresh();
+                nodelay(stdscr, FALSE);
+                getch();
+                nodelay(stdscr, TRUE);
+            }
+            else if (selected == 2) {
+                return 0;
+            }
+        }
+        
+        usleep(50000);
+    }
+}
+
 int main() {
     int ch;
     int i, j;
@@ -76,29 +190,20 @@ int main() {
     nodelay(stdscr, TRUE);
     
     start_color();
-    init_pair(1, COLOR_MAGENTA, COLOR_BLACK); // pink snake head
-    init_pair(2, COLOR_CYAN, COLOR_BLACK);    // cyan border
-    init_pair(3, COLOR_YELLOW, COLOR_BLACK);  // yellow obstacle
-    init_pair(4, COLOR_GREEN, COLOR_BLACK);   // green snake body
-    init_pair(5, COLOR_RED, COLOR_BLACK);     // red food
+    init_pair(1, COLOR_MAGENTA, COLOR_BLACK); 
+    init_pair(2, COLOR_CYAN, COLOR_BLACK);    
+    init_pair(3, COLOR_YELLOW, COLOR_BLACK);  
+    init_pair(4, COLOR_GREEN, COLOR_BLACK);   
+    init_pair(5, COLOR_RED, COLOR_BLACK);     
     
     srand(time(NULL));
-    
-    // Init snake di tengah (posisi aman)
-    snake[0].x = 25;
-    snake[0].y = 12;
-    snake[1].x = 24;
-    snake[1].y = 12;
-    snake[2].x = 23;
-    snake[2].y = 12;
-    
-    snake_len = 3;
-    score = 0;
-    dx = 1;
-    dy = 0;
-    game_over = 0;
-    
-    spawn_food();
+
+    if (!show_menu()) {
+        endwin();
+        return 0;
+    }
+
+    reset_game();
     
     while (1) {
         ch = getch();
@@ -118,19 +223,13 @@ int main() {
         }
         else if (ch == 'q') break;
         else if (ch == 'r') {
-            // Restart game
-            snake[0].x = 25;
-            snake[0].y = 12;
-            snake[1].x = 24;
-            snake[1].y = 12;
-            snake[2].x = 23;
-            snake[2].y = 12;
-            snake_len = 3;
-            score = 0;
-            dx = 1;
-            dy = 0;
-            game_over = 0;
-            spawn_food();
+            reset_game();
+        }
+        else if (ch == 'm') {
+            if (!show_menu()) {
+                break;
+            }
+            reset_game();
         }
         
         // Update game logic hanya jika belum game over
@@ -175,7 +274,7 @@ int main() {
             }
         }
         
-        erase(); // Lebih aman dari clear()
+        erase();
         
         // Draw border (cyan)
         attron(COLOR_PAIR(2));
@@ -189,10 +288,8 @@ int main() {
         }
         attroff(COLOR_PAIR(2));
         
-        // Draw obstacles (yellow)
         attron(COLOR_PAIR(3));
         
-        // 4 kotak pojok
         for (i = 3; i <= 5; i++) {
             for (j = 3; j <= 5; j++) {
                 mvprintw(i, j, "#");
@@ -214,7 +311,6 @@ int main() {
             }
         }
         
-        // Garis horizontal
         for (j = 8; j <= 15; j++) {
             mvprintw(10, j, "#");
         }
@@ -222,7 +318,6 @@ int main() {
             mvprintw(10, j, "#");
         }
         
-        // Kotak tengah
         for (i = 8; i <= 9; i++) {
             for (j = 22; j <= 27; j++) {
                 mvprintw(i, j, "#");
@@ -249,14 +344,15 @@ int main() {
         
         // Info
         mvprintw(22, 0, "Score: %d | Length: %d", score, snake_len);
-        mvprintw(23, 0, "WASD/Arrows: Move | Q: Quit | R: Restart");
-        
-        // Game Over message
+        mvprintw(23, 0, "WASD/Arrows: Move | Q: Quit | R: Restart | M: Menu");        
+
         if (game_over) {
-            attron(COLOR_PAIR(5));
-            mvprintw(10, 18, "*** GAME OVER! ***");
-            mvprintw(11, 16, "Press R to Restart");
-            attroff(COLOR_PAIR(5));
+            attron(COLOR_PAIR(5) | A_BOLD);
+            mvprintw(10, 16, "*** GAME OVER! ***");
+            mvprintw(11, 13, "Final Score: %d", score);
+            mvprintw(12, 11, "Press R to Restart");
+            mvprintw(13, 13, "Press M for Menu");
+            attroff(COLOR_PAIR(5) | A_BOLD);
         }
         
         refresh();
